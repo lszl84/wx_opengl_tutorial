@@ -3,6 +3,8 @@
 #include <GL/glew.h> // must be included before glcanvas.h
 #include <wx/glcanvas.h>
 
+#include <wx/colordlg.h>
+
 class MyApp : public wxApp
 {
 public:
@@ -33,6 +35,8 @@ public:
     void OnPaint(wxPaintEvent &event);
     void OnSize(wxSizeEvent &event);
 
+    wxColour triangleColor{wxColour(255, 128, 51)};
+
 private:
     wxGLContext *openGLContext;
     bool isOpenGLInitialized{false};
@@ -56,6 +60,8 @@ bool MyApp::OnInit()
 MyFrame::MyFrame(const wxString &title)
     : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxDefaultSize)
 {
+    auto sizer = new wxBoxSizer(wxVERTICAL);
+
     wxGLAttributes vAttrs;
     vAttrs.PlatformDefaults().Defaults().EndList();
 
@@ -63,7 +69,30 @@ MyFrame::MyFrame(const wxString &title)
     {
         openGLCanvas = new OpenGLCanvas(this, vAttrs);
         openGLCanvas->SetMinSize(FromDIP(wxSize(640, 480)));
+        sizer->Add(openGLCanvas, 1, wxEXPAND);
     }
+
+    auto bottomSizer = new wxBoxSizer(wxHORIZONTAL);
+    auto colorButton = new wxButton(this, wxID_ANY, "Change Color");
+
+    bottomSizer->Add(colorButton, 0, wxALL | wxALIGN_CENTER, FromDIP(15));
+    bottomSizer->AddStretchSpacer(1);
+
+    sizer->Add(bottomSizer, 0, wxEXPAND);
+
+    SetSizerAndFit(sizer);
+
+    colorButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event)
+                      {
+                          wxColourData colorData;
+                          colorData.SetColour(this->openGLCanvas->triangleColor);
+                          wxColourDialog dialog(this, &colorData);
+
+                          if (dialog.ShowModal() == wxID_OK)
+                          {
+                              openGLCanvas->triangleColor = dialog.GetColourData().GetColour();
+                              openGLCanvas->Refresh();
+                          } });
 }
 
 OpenGLCanvas::OpenGLCanvas(MyFrame *parent, const wxGLAttributes &canvasAttrs)
@@ -136,9 +165,10 @@ bool OpenGLCanvas::InitializeOpenGL()
     constexpr auto fragmentShaderSource = R"(
         #version 330 core
         out vec4 FragColor;
+        uniform vec4 triangleColor;
         void main()
         {
-            FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+            FragColor = triangleColor;
         }
     )";
 
@@ -215,6 +245,10 @@ void OpenGLCanvas::OnPaint(wxPaintEvent &WXUNUSED(event))
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(shaderProgram);
+
+    int colorLocation = glGetUniformLocation(shaderProgram, "triangleColor");
+    glUniform4f(colorLocation, triangleColor.Red() / 255.0f, triangleColor.Green() / 255.0f, triangleColor.Blue() / 255.0f, 1.0f);
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
