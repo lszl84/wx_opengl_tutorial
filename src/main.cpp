@@ -239,6 +239,11 @@ void OpenGLCanvas::OnPaint(wxPaintEvent &WXUNUSED(event))
 {
     wxPaintDC dc(this);
 
+    if (!isOpenGLInitialized)
+    {
+        return;
+    }
+
     SetCurrent(*openGLContext);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
